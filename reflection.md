@@ -35,7 +35,8 @@ The scheduler considers two constraints: the owner's available time budget (avai
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
-The scheduler uses a greedy algorithm: it sorts tasks by priority and picks them top-down until time runs out. The tradeoff is that this can leave time on the table — for example, two short low-priority tasks might fit in the remaining gap after one high-priority task, but a single medium-priority task that's slightly too long gets skipped entirely even though something else could fill that slot. This is reasonable for a daily pet care app because getting the most important tasks done consistently matters more than perfectly optimizing every minute.
+The conflict detection only flags tasks assigned to the same pet — two tasks for different pets at the same time are not considered a conflict, since the owner could theoretically handle them simultaneously (e.g. feeding the cat while the dog eats). A more thorough approach would treat the owner as a finite resource and flag any two overlapping tasks regardless of pet. That would be more accurate but would also require modeling the owner's attention as a constraint, which goes beyond the scope of this project.
+A second tradeoff is that conflict detection only checks tasks that have a start_time set. Tasks without a start time are scheduled by the greedy algorithm but never checked for time overlaps. This keeps the logic simple — tasks without times can't conflict by definition — but it means the system won't catch conflicts introduced by manually assigning start times to some tasks but not others.
 
 ---
 
