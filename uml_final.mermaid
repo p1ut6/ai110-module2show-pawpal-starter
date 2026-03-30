@@ -1,0 +1,73 @@
+classDiagram
+    direction TB
+
+    class Task {
+        +str name
+        +int duration_minutes
+        +int priority
+        +str category
+        +str recurrence
+        +str pet_name
+        +str start_time
+        +str task_id
+        +bool completed
+        +str due_date
+        +mark_complete() None
+        +reset() None
+        +is_feasible(available_minutes) bool
+        +next_occurrence() Task|None
+        +end_time() str|None
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +str breed
+        +int age
+        -list _tasks
+        +add_task(task) None
+        +remove_task(task_id) None
+        +get_tasks() list~Task~
+    }
+
+    class Owner {
+        +str name
+        +int available_minutes
+        +dict preferences
+        -list _pets
+        +add_pet(pet) None
+        +get_pets() list~Pet~
+        +update_preferences(prefs) None
+        +get_all_tasks() list~Task~
+    }
+
+    class DailyPlan {
+        +list~Task~ tasks
+        +list~Task~ skipped
+        +str reasoning
+        +list~str~ conflicts
+        +str date
+        +to_dict() dict
+        +summary() str
+    }
+
+    class Scheduler {
+        +Owner owner
+        +generate_plan() DailyPlan
+        +sort_tasks_by_duration(tasks) list~Task~
+        +sort_tasks_by_start_time(tasks) list~Task~
+        +filter_tasks(pet_name, completed, category) list~Task~
+        +reset_recurring_tasks() list~Task~
+        +detect_conflicts(tasks) list~str~
+        +validate_constraints() list~str~
+        +explain_plan(plan) str
+        +get_skipped_tasks(plan) list~Task~
+        +total_duration(tasks) int
+        -_build_reasoning(scheduled, skipped, budget) str
+    }
+
+    Owner "1" *-- "0..*" Pet : owns
+    Pet "1" *-- "0..*" Task : has
+    Scheduler "1" --> "1" Owner : reads
+    Scheduler ..> DailyPlan : produces
+    DailyPlan "1" o-- "0..*" Task : scheduled / skipped
