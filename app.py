@@ -39,7 +39,6 @@ with st.sidebar:
         avail = st.number_input("Available minutes today", min_value=1, max_value=480, value=90)
         submitted = st.form_submit_button("Save owner")
         if submitted and owner_name.strip():
-            # Preserve existing pets if owner already exists
             existing_pets = get_owner()._pets if get_owner() else []
             new_owner = Owner(name=owner_name.strip(), available_minutes=int(avail))
             for pet in existing_pets:
@@ -86,7 +85,6 @@ with tab_pets:
         if not pet_name.strip():
             st.warning("Please enter a pet name.")
         else:
-            # Check for duplicate names
             existing_names = [p.name.lower() for p in owner.get_pets()]
             if pet_name.strip().lower() in existing_names:
                 st.warning(f"You already have a pet named {pet_name}.")
@@ -100,7 +98,6 @@ with tab_pets:
                 owner.add_pet(new_pet)
                 st.success(f"Added {new_pet.name} 🐾")
 
-    # Display existing pets
     pets = owner.get_pets()
     if not pets:
         st.info("No pets added yet. Use the form above to add one.")
@@ -112,7 +109,8 @@ with tab_pets:
                 if tasks:
                     for t in tasks:
                         status = "✅" if t.completed else "⬜"
-                        st.write(f"{status} {t.name} · {t.duration_minutes} min · priority {t.priority}")
+                        time_str = f" @ {t.start_time}" if t.start_time else ""
+                        st.write(f"{status} {t.name} · {t.duration_minutes} min · priority {t.priority}{time_str}")
                 else:
                     st.caption("No tasks yet — add some in the Tasks tab.")
 
@@ -129,9 +127,10 @@ with tab_tasks:
             st.subheader("Add a task")
             col1, col2 = st.columns(2)
             with col1:
-                selected_pet = st.selectbox("Pet", [p.name for p in pets])
-                task_name    = st.text_input("Task name", placeholder="e.g. Morning walk")
-                task_cat     = st.selectbox("Category", ["walk", "feeding", "meds", "grooming", "enrichment", "other"])
+                selected_pet    = st.selectbox("Pet", [p.name for p in pets])
+                task_name       = st.text_input("Task name", placeholder="e.g. Morning walk")
+                task_cat        = st.selectbox("Category", ["walk", "feeding", "meds", "grooming", "enrichment", "other"])
+                task_start_time = st.text_input("Start time (optional)", placeholder="e.g. 09:00")
             with col2:
                 task_duration   = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
                 task_priority   = st.slider("Priority", min_value=1, max_value=5, value=3,
@@ -143,6 +142,16 @@ with tab_tasks:
             if not task_name.strip():
                 st.warning("Please enter a task name.")
             else:
+                # Validate start time format if provided
+                start_time = task_start_time.strip()
+                if start_time:
+                    try:
+                        from datetime import datetime
+                        datetime.strptime(start_time, "%H:%M")
+                    except ValueError:
+                        st.error("Start time must be in HH:MM format, e.g. 09:00")
+                        st.stop()
+
                 pet_obj = next(p for p in pets if p.name == selected_pet)
                 new_task = Task(
                     name=task_name.strip(),
@@ -150,11 +159,11 @@ with tab_tasks:
                     priority=int(task_priority),
                     category=task_cat,
                     recurrence=task_recurrence,
+                    start_time=start_time,
                 )
                 pet_obj.add_task(new_task)
                 st.success(f"Added '{new_task.name}' to {pet_obj.name}.")
 
-        # Show all tasks across all pets
         st.subheader("All tasks")
         all_tasks = owner.get_all_tasks()
         if not all_tasks:
@@ -164,7 +173,8 @@ with tab_tasks:
                 for task in pet.get_tasks():
                     col1, col2, col3 = st.columns([4, 2, 2])
                     with col1:
-                        st.write(f"**{task.name}** ({pet.name}) · {task.category}")
+                        time_str = f" @ {task.start_time}" if task.start_time else ""
+                        st.write(f"**{task.name}** ({pet.name}) · {task.category}{time_str}")
                     with col2:
                         st.write(f"{task.duration_minutes} min · ⭐ {task.priority}")
                     with col3:
@@ -205,11 +215,18 @@ with tab_plan:
         col2.metric("Total time", f"{total_min} min")
         col3.metric("Skipped", f"{len(plan.skipped)} tasks")
 
+        # Conflict warnings
+        if plan.conflicts:
+            st.subheader("⚠️ Conflicts detected")
+            for c in plan.conflicts:
+                st.warning(c)
+
         # Scheduled tasks
         st.subheader("✅ Scheduled")
         if plan.tasks:
             for t in plan.tasks:
-                st.write(f"**[{t.priority}★] {t.name}** ({t.pet_name}) · {t.duration_minutes} min · {t.category}")
+                time_str = f" @ {t.start_time}–{t.end_time()}" if t.start_time else ""
+                st.write(f"**[{t.priority}★] {t.name}** ({t.pet_name}) · {t.duration_minutes} min · {t.category}{time_str}")
         else:
             st.info("No tasks could be scheduled.")
 
